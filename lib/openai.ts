@@ -11,9 +11,37 @@ export const openai = new OpenAI({
 // Helper function to generate embeddings
 export async function getEmbedding(text: string) {
   const response = await openai.embeddings.create({
-    model: "text-embedding-ada-002",
+    model: "text-embedding-ada-002",  // This model outputs 1536 dimensions
     input: text,
   });
 
   return response.data[0].embedding;
+}
+
+// Helper function to generate chat responses
+export async function getChatResponse(question: string, relevantEntries: { content: string, created_at: string }[]) {
+  // Format the entries into a readable context
+  const context = relevantEntries
+    .map(entry => `Entry from ${new Date(entry.created_at).toLocaleDateString()}:\n${entry.content}`)
+    .join('\n\n');
+
+  const currentDate = new Date().toLocaleDateString();
+
+  const response = await openai.chat.completions.create({
+    model: "gpt-3.5-turbo",
+    messages: [
+      {
+        role: "system",
+        content: `You are a helpful AI that provides insights about journal entries. Be empathetic and thoughtful in your responses. Today's date is ${currentDate}.`
+      },
+      {
+        role: "user",
+        content: `Here are some relevant journal entries:\n\n${context}\n\nQuestion: ${question}`
+      }
+    ],
+    temperature: 0.7,
+    max_tokens: 500,
+  });
+
+  return response.choices[0].message.content;
 } 
