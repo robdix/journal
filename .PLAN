@@ -1,70 +1,26 @@
-# Implementation Plan
+# Current status
+- Works perfectly
+- Pushed to Github
+- Using ngrok to test the API endpoint
+    - If ngrok gets disconnected, I need to get a new ngrok URL and enter it into Make.com
+    - To get a new ngrok URL, I need to run `ngrok http 3000` in the terminal
+- The Make.com scenario is here: https://eu2.make.com/507916/scenarios/3387603/edit
 
-## Phase 1: Project Setup
-1. Initialize Next.js project
-2. Set up environment variables
-3. Install dependencies (Supabase, OpenAI, etc.)
-4. Create basic file structure
+# Plan
+- Make sure it's correctly calling multiple notes from the same day if needed?
+- Publish properly on Vercel
+- Add genuine entries for a week
+- See how the insights work and tweak the prompt as needed
 
-## Phase 2: Frontend Components
-1. Create JournalInput component
-   - Simple textarea
-   - Save button
-   - Success/error feedback states
-   - Basic styling
-
-2. Create ChatInterface component
-   - Question input
-   - Response display area
-   - Loading states
-   - Basic styling
-
-3. Implement main pages
-   - index.tsx with JournalInput
-   - insights.tsx with ChatInterface
-
-## Phase 3: Backend & API
-1. Set up Supabase
-   - Initialize client
-   - Create table and enable pgvector
-   - Test connection
-
-2. Create OpenAI helpers
-   - Embedding generation
-   - Chat completion function
-
-3. Implement API endpoints
-   - /api/journal endpoint
-   - /api/query endpoint
-   - Basic error handling
-
-## Phase 4: Integration
-1. Connect JournalInput to /api/journal
-2. Connect ChatInterface to /api/query
-3. Add loading states and error handling to UI
-4. Test full flow end-to-end
-
-## Phase 5: Polish & Deploy
-1. Add final styling touches
-2. Test error scenarios
-3. Deploy to Vercel
-4. Final testing in production environment
-
-## Future Phases (Not Initial Scope)
-- Conversation history
-- Authentication
-- Rate limiting
-- Analytics
-- iOS app integration
-
-## Testing Strategy
-- Manual testing of each component
-- API endpoint testing
-- Error handling verification
-- End-to-end flow testing
-
-## Notes
-- Keep UI minimal and functional
-- Focus on core functionality first
-- Maintain clean separation of concerns
-- Document as we go
+# Roadmap
+- Add a chat history
+- Add pre-set prompts (like "What have I been doing?")
+- Add a "user info" screen that gets pulled into the prompt with extra context:
+    - Goals
+    - Projects
+    - Life info
+    - Etc
+- Move the Telegram integration into the app to remove the need for Make.com
+- Add the ability to switch models on the front end
+- Make the API return a success/failure message to Telegram
+    - It already shows on the front end so must be there already in some form

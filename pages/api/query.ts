@@ -35,8 +35,8 @@ export default async function handler(
     const { data: similarEntries, error: searchError } = await supabase
       .rpc('match_journal_entries', {
         query_embedding: questionEmbedding,
-        match_threshold: 0.5, // Adjust this threshold as needed
-        match_count: 5, // Number of entries to return
+        match_threshold: 0.3, // Lower threshold to be more inclusive
+        match_count: 10, // Increased count to get more potential matches
       });
 
     if (searchError) throw searchError;

@@ -29,21 +29,43 @@ export async function getChatResponse(
   relevantEntries: { content: string, created_at: string }[],
   conversationHistory: ChatMessage[] = []
 ): Promise<string> {
-  // Format the entries into a readable context
-  const context = relevantEntries
-    .map(entry => `Entry from ${new Date(entry.created_at).toLocaleDateString()}:\n${entry.content}`)
+  console.log('Received entries:', relevantEntries);
+
+  // Group entries by date
+  const entriesByDate = relevantEntries.reduce((acc, entry) => {
+    const date = new Date(entry.created_at).toLocaleDateString();
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(entry.content);
+    return acc;
+  }, {} as Record<string, string[]>);
+
+  console.log('Grouped entries by date:', entriesByDate);
+
+  // Format the entries into a readable context, grouped by date
+  const context = Object.entries(entriesByDate)
+    .map(([date, entries]) => 
+      `Entries from ${date}:\n${entries.map((entry, i) => `[Entry ${i + 1}]: ${entry}`).join('\n\n')}`
+    )
     .join('\n\n');
+
+  console.log('Formatted context:', context);
 
   const currentDate = new Date().toLocaleDateString();
 
   const messages: ChatMessage[] = [
     {
       role: "system",
-      content: `You are a helpful AI that provides insights about journal entries. Be empathetic and thoughtful in your responses. Today's date is ${currentDate}.`
+      content: `You are a helpful AI that provides insights about journal entries. IMPORTANT INSTRUCTIONS:
+1. When multiple entries exist for a date or topic, ALWAYS discuss ALL relevant entries in your initial response
+2. If entries are numbered, explicitly reference them by their numbers (e.g., "In Entry 1... and in Entry 2...")
+3. Never hold back information for follow-up questions
+4. Treat each entry as equally important, especially when they show different aspects of the same day
+5. When asked about a specific day, you MUST analyze and mention every entry from that day
+Today's date is ${currentDate}.`
     },
     {
       role: "user",
-      content: `Here are some relevant journal entries:\n\n${context}`
+      content: `Here are the relevant journal entries (if multiple entries exist for a date, you MUST discuss all of them):\n\n${context}`
     },
     ...conversationHistory,
     {
@@ -51,6 +73,8 @@ export async function getChatResponse(
       content: question
     }
   ];
+
+  console.log('Final messages to OpenAI:', JSON.stringify(messages, null, 2));
 
   const response = await openai.chat.completions.create({
     model: "gpt-3.5-turbo",
