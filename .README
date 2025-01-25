@@ -1,0 +1,115 @@
+## README
+
+### Project Overview
+A simple journaling + embeddings application with:
+1. **Journal Entry Page** – Web UI for typing in daily text.
+2. **Insights/Chat Page** – A chat-like interface for querying and summarising your past entries.
+3. **External API Endpoint** – A route to accept text from external sources or voice-to-text flows.
+
+### Tech Stack
+- **Next.js** (React framework)
+- **Supabase** (Postgres + pgvector for embeddings)
+- **OpenAI** (Embeddings + LLM, e.g. `text-embedding-ada-002` + `gpt-3.5-turbo`)
+- Deployed on **Vercel** (for production). Initially run locally via `npm run dev`.
+
+### Data Model
+In Supabase:
+```sql
+create extension if not exists vector;
+
+create table if not exists journal_entries (
+  id uuid primary key default gen_random_uuid(),
+  content text not null,
+  embedding vector(1536),
+  created_at timestamp with time zone default now()
+);
+
+create index on journal_entries
+  using ivfflat (embedding vector_ops)
+  with (lists = 100);
+```
+
+### File Structure
+
+```
+.
+├── pages
+│   ├── index.tsx         // Journal input page (web UI)
+│   ├── insights.tsx      // Chat-like insights page
+│   └── api
+│       ├── journal.ts    // POST endpoint for external text submissions
+│       ├── query.ts      // POST endpoint for embedding-based query/LLM
+│       └── ...
+├── components
+│   ├── JournalInput.tsx  // Text input component
+│   └── ChatInterface.tsx // Q&A interface component
+├── lib
+│   ├── supabaseClient.ts // Exports the Supabase client
+│   └── openai.ts         // Helper for OpenAI requests
+├── .env.local            // Local environment variables
+└── package.json
+```
+
+### Local Development
+
+1. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+2. **Environment Variables** in `.env.local`:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=<your_supabase_url>
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<your_supabase_anon_key>
+   OPENAI_API_KEY=<your_openai_api_key>
+   ```
+3. **Run**:
+   ```bash
+   npm run dev
+   ```
+   The app is now available at http://localhost:3000.
+
+### Web UI Pages
+
+1. **Home / `index.tsx`**:  
+   - Simple text area for daily journaling
+   - Save button to store entries
+   - Basic success/error feedback
+
+2. **Insights / `insights.tsx`**:  
+   - Minimal chat interface with:
+     - Question input
+     - Response display
+   - Stateless implementation (no conversation history stored)
+   - Easy to extend for persistent history later
+
+### API Endpoints
+
+#### 1. `/api/journal` – Journal Submissions
+**Method**: `POST`  
+**Body**: `{ content: string }`  
+**Basic Error Handling**:
+- Empty content validation
+- Supabase connection errors
+- OpenAI API errors
+
+#### 2. `/api/query` – Chat/Insights Retrieval
+**Method**: `POST`  
+**Body**: `{ question: string }`  
+**Basic Error Handling**:
+- Empty question validation
+- Embedding/search errors
+- LLM response errors
+
+### Deployment (Vercel)
+1. Push to GitHub/GitLab
+2. Import on [Vercel](https://vercel.com/new)
+3. Set environment variables
+4. Deploy
+
+### Future Considerations
+- Add conversation history persistence
+- Implement user authentication if needed
+- Add rate limiting for API endpoints
+- iOS app integration
+- Analytics and summaries
+
