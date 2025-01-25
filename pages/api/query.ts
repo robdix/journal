@@ -2,6 +2,11 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../lib/supabaseClient';
 import { getEmbedding, getChatResponse } from '../../lib/openai';
 
+interface Message {
+  type: 'user' | 'assistant';
+  content: string;
+}
+
 type Data = {
   success: boolean;
   response?: string;
@@ -17,7 +22,7 @@ export default async function handler(
   }
 
   try {
-    const { question } = req.body;
+    const { question, context } = req.body;
 
     if (!question?.trim()) {
       return res.status(400).json({ success: false, error: 'Question is required' });
@@ -36,10 +41,19 @@ export default async function handler(
 
     if (searchError) throw searchError;
 
-    // Get a response from OpenAI
-    const response = await getChatResponse(question, similarEntries || []);
+    // Format conversation history for the AI
+    const conversationHistory = context?.map((msg: Message) => ({
+      role: msg.type === 'user' ? 'user' : 'assistant',
+      content: msg.content
+    })) || [];
 
-    return res.status(200).json({ success: true, response });
+    // Get a response from OpenAI
+    const response = await getChatResponse(question, similarEntries || [], conversationHistory);
+
+    return res.status(200).json({ 
+      success: true, 
+      response: response 
+    });
   } catch (error: any) {
     console.error('Error processing query:', error);
     return res.status(500).json({ 

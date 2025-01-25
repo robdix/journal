@@ -6,10 +6,18 @@ interface Message {
   content: string;
 }
 
+// Number of previous messages to include as context
+const CONTEXT_MESSAGE_LIMIT = 8;
+
 export default function ChatInterface() {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+
+  const getRecentContext = (messages: Message[]) => {
+    // Get the last N messages, excluding the most recent user message
+    return messages.slice(-CONTEXT_MESSAGE_LIMIT);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,10 +28,14 @@ export default function ChatInterface() {
     setStatus('loading');
 
     try {
+      const recentContext = getRecentContext(messages);
       const res = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ 
+          question,
+          context: recentContext,
+        }),
       });
 
       if (!res.ok) throw new Error('Failed to get response');
