@@ -28,6 +28,16 @@ export default function Navigation() {
           >
             Insights
           </Link>
+          <Link 
+            href="/context"
+            className={`${
+              router.pathname === '/context' 
+                ? 'text-blue-600 border-b-2 border-blue-600' 
+                : 'text-gray-500 hover:text-gray-700'
+            } px-1 py-2`}
+          >
+            Context
+          </Link>
         </div>
       </div>
     </nav>

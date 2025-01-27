@@ -1,19 +1,18 @@
 # Current status
 - Works perfectly
 - Pushed to Github
-- Using ngrok to test the API endpoint
+- I can use ngrok to test the API endpoint locally if needed
     - If ngrok gets disconnected, I need to get a new ngrok URL and enter it into Make.com
     - To get a new ngrok URL, I need to run `ngrok http 3000` in the terminal
 - The Make.com scenario is here: https://eu2.make.com/507916/scenarios/3387603/edit
 
 # Plan
-- Make sure it's correctly calling multiple notes from the same day if needed?
-- Publish properly on Vercel
 - Add genuine entries for a week
 - See how the insights work and tweak the prompt as needed
 
 # Roadmap
 - Add a chat history
+- Add API key check to Make.com to prevent abuse
 - Add pre-set prompts (like "What have I been doing?")
 - Add a "user info" screen that gets pulled into the prompt with extra context:
     - Goals

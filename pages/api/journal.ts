@@ -11,12 +11,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
-  console.log('Received request:', {
-    method: req.method,
-    body: req.body,
-    headers: req.headers
-  });
-
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }

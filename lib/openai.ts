@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import type { UserContext } from '../types/context';
 
 if (!process.env.OPENAI_API_KEY) {
   throw new Error('Missing env.OPENAI_API_KEY');
@@ -27,10 +28,9 @@ interface ChatMessage {
 export async function getChatResponse(
   question: string, 
   relevantEntries: { content: string, created_at: string }[],
-  conversationHistory: ChatMessage[] = []
+  conversationHistory: ChatMessage[] = [],
+  userContext?: UserContext
 ): Promise<string> {
-  console.log('Received entries:', relevantEntries);
-
   // Group entries by date
   const entriesByDate = relevantEntries.reduce((acc, entry) => {
     const date = new Date(entry.created_at).toLocaleDateString();
@@ -39,33 +39,42 @@ export async function getChatResponse(
     return acc;
   }, {} as Record<string, string[]>);
 
-  console.log('Grouped entries by date:', entriesByDate);
-
   // Format the entries into a readable context, grouped by date
-  const context = Object.entries(entriesByDate)
+  const journalContext = Object.entries(entriesByDate)
     .map(([date, entries]) => 
       `Entries from ${date}:\n${entries.map((entry, i) => `[Entry ${i + 1}]: ${entry}`).join('\n\n')}`
     )
     .join('\n\n');
 
-  console.log('Formatted context:', context);
-
   const currentDate = new Date().toLocaleDateString();
+
+  // Format user context if available
+  const userContextStr = userContext ? `
+User Context:
+- Background: ${userContext.background_info}
+- Goals: ${userContext.goals}
+- Current Projects: ${userContext.current_projects}
+- Other Information: ${userContext.other}
+` : '';
 
   const messages: ChatMessage[] = [
     {
       role: "system",
-      content: `You are a helpful AI that provides insights about journal entries. IMPORTANT INSTRUCTIONS:
-1. When multiple entries exist for a date or topic, ALWAYS discuss ALL relevant entries in your initial response
-2. If entries are numbered, explicitly reference them by their numbers (e.g., "In Entry 1... and in Entry 2...")
-3. Never hold back information for follow-up questions
-4. Treat each entry as equally important, especially when they show different aspects of the same day
-5. When asked about a specific day, you MUST analyze and mention every entry from that day
+      content: `You are a helpful AI that provides insights about journal entries. ${userContextStr}
+
+IMPORTANT INSTRUCTIONS:
+1. Consider the user's context (background, goals, projects) when analyzing entries
+2. When multiple entries exist for a date or topic, ALWAYS discuss ALL relevant entries in your initial response
+3. If entries are numbered, explicitly reference them by their numbers (e.g., "In Entry 1... and in Entry 2...")
+4. Never hold back information for follow-up questions
+5. Treat each entry as equally important
+6. When relevant, relate your insights to the user's goals and projects
+
 Today's date is ${currentDate}.`
     },
     {
       role: "user",
-      content: `Here are the relevant journal entries (if multiple entries exist for a date, you MUST discuss all of them):\n\n${context}`
+      content: `Here are the relevant journal entries (if multiple entries exist for a date, you MUST discuss all of them):\n\n${journalContext}`
     },
     ...conversationHistory,
     {
@@ -73,8 +82,6 @@ Today's date is ${currentDate}.`
       content: question
     }
   ];
-
-  console.log('Final messages to OpenAI:', JSON.stringify(messages, null, 2));
 
   const response = await openai.chat.completions.create({
     model: "gpt-3.5-turbo",

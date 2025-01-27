@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../lib/supabaseClient';
 import { getEmbedding, getChatResponse } from '../../lib/openai';
+import type { UserContext } from '../../types/context';
 
 interface Message {
   type: 'user' | 'assistant';
@@ -28,6 +29,17 @@ export default async function handler(
       return res.status(400).json({ success: false, error: 'Question is required' });
     }
 
+    // Fetch user context
+    const { data: userContext, error: contextError } = await supabase
+      .from('user_context')
+      .select('*')
+      .single();
+
+    if (contextError) {
+      console.error('Error fetching user context:', contextError);
+      // Continue without context rather than failing
+    }
+
     // Generate embedding for the question
     const questionEmbedding = await getEmbedding(question);
 
@@ -48,7 +60,12 @@ export default async function handler(
     })) || [];
 
     // Get a response from OpenAI
-    const response = await getChatResponse(question, similarEntries || [], conversationHistory);
+    const response = await getChatResponse(
+      question, 
+      similarEntries || [], 
+      conversationHistory,
+      userContext as UserContext
+    );
 
     return res.status(200).json({ 
       success: true, 
