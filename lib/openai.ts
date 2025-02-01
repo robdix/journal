@@ -57,10 +57,22 @@ User Context:
 - Other Information: ${userContext.other}
 ` : '';
 
+  // Format name mappings if available
+  const nameContextStr = userContext?.name_mappings?.length ? `
+Important People in User's Life:
+${userContext.name_mappings.map(person => 
+  `- ${person.name}${person.description ? ` (${person.description})` : ''}`
+).join('\n')}
+
+Note: When analyzing entries, be aware that these names might appear with slight spelling variations or typos. Use your judgment to identify when variations likely refer to these people.
+` : '';
+
   const messages: ChatMessage[] = [
     {
       role: "system",
-      content: `You are a helpful AI that provides insights about journal entries. ${userContextStr}
+      content: `You are a helpful AI that provides insights about journal entries.
+${userContextStr}
+${nameContextStr}
 
 IMPORTANT INSTRUCTIONS:
 1. Consider the user's context (background, goals, projects) when analyzing entries
@@ -69,6 +81,8 @@ IMPORTANT INSTRUCTIONS:
 4. Never hold back information for follow-up questions
 5. Treat each entry as equally important
 6. When relevant, relate your insights to the user's goals and projects
+7. When you recognize names that are likely referring to known people (even with spelling variations), use their correct names in your responses
+8. If you're unsure about a name match, maintain the original spelling used in the entry
 
 Today's date is ${currentDate}.`
     },

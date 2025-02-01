@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { UserContext } from '../types/context';
+import type { UserContext, NameMapping } from '../types/context';
 
 export default function ContextForm() {
   const [context, setContext] = useState<Omit<UserContext, 'id'>>({
@@ -7,6 +7,7 @@ export default function ContextForm() {
     goals: '',
     current_projects: '',
     other: '',
+    name_mappings: [],
   });
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
@@ -63,12 +64,39 @@ export default function ContextForm() {
     }
   };
 
-  const handleChange = (field: keyof Omit<UserContext, 'id'>) => (
+  const handleChange = (field: keyof Omit<UserContext, 'id' | 'name_mappings'>) => (
     e: React.ChangeEvent<HTMLTextAreaElement>
   ) => {
     setContext(prev => ({
       ...prev,
       [field]: e.target.value
+    }));
+  };
+
+  const addNameMapping = () => {
+    setContext(prev => ({
+      ...prev,
+      name_mappings: [
+        ...prev.name_mappings,
+        { name: '', description: '' }
+      ]
+    }));
+  };
+
+  const removeNameMapping = (index: number) => {
+    setContext(prev => ({
+      ...prev,
+      name_mappings: prev.name_mappings.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateNameMapping = (index: number, field: keyof NameMapping, value: string) => {
+    setContext(prev => ({
+      ...prev,
+      name_mappings: prev.name_mappings.map((mapping, i) => {
+        if (i !== index) return mapping;
+        return { ...mapping, [field]: value };
+      })
     }));
   };
 
@@ -128,6 +156,48 @@ export default function ContextForm() {
           placeholder="Enter any other relevant information..."
           className="w-full h-32 p-4 border rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+      </div>
+
+      {/* Name Mappings */}
+      <div className="border-t pt-6">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-lg font-medium text-gray-900">Important People</h2>
+            <p className="text-sm text-gray-500 mt-1">Add names of people who appear in your journal frequently</p>
+          </div>
+          <button
+            type="button"
+            onClick={addNameMapping}
+            className="text-sm text-blue-500 hover:text-blue-600"
+          >
+            + Add Person
+          </button>
+        </div>
+        <div className="space-y-4">
+          {context.name_mappings.map((mapping, index) => (
+            <div key={index} className="flex gap-3">
+              <input
+                placeholder="Name (e.g., Talya)"
+                className="w-1/3 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={mapping.name}
+                onChange={(e) => updateNameMapping(index, 'name', e.target.value)}
+              />
+              <input
+                placeholder="Who is this person? (e.g., exec assistant)"
+                className="flex-1 p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={mapping.description || ''}
+                onChange={(e) => updateNameMapping(index, 'description', e.target.value)}
+              />
+              <button
+                type="button"
+                onClick={() => removeNameMapping(index)}
+                className="px-2 text-red-500 hover:text-red-600"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Submit Button and Status */}

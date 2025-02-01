@@ -11,6 +11,11 @@
 - See how the insights work and tweak the prompt as needed
 
 # Roadmap
+- Add name mappings to context:
+    - Add name_mappings column to user_context table
+    - Update context form to manage name mappings
+    - Include name context in OpenAI prompts
+    - Help LLM disambiguate names and provide person context
 - Add a chat history
 - Add API key check to Make.com to prevent abuse
 - Add pre-set prompts (like "What have I been doing?")

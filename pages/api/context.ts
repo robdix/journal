@@ -41,6 +41,31 @@ export default async function handler(
         }
       }
 
+      // Validate name_mappings if present
+      if (updates.name_mappings) {
+        if (!Array.isArray(updates.name_mappings)) {
+          return res.status(400).json({
+            success: false,
+            error: 'name_mappings must be an array',
+          });
+        }
+
+        for (const mapping of updates.name_mappings) {
+          if (typeof mapping.name !== 'string' || !mapping.name) {
+            return res.status(400).json({
+              success: false,
+              error: 'Each name mapping must have a name field',
+            });
+          }
+          if (mapping.description && typeof mapping.description !== 'string') {
+            return res.status(400).json({
+              success: false,
+              error: 'Description must be a string if provided',
+            });
+          }
+        }
+      }
+
       // Update the context
       const { data, error } = await supabase
         .from('user_context')
@@ -49,6 +74,7 @@ export default async function handler(
           goals: updates.goals,
           current_projects: updates.current_projects,
           other: updates.other,
+          name_mappings: updates.name_mappings || [],
         })
         .not('id', 'is', null) // ensures we update the existing row
         .single();
