@@ -11,20 +11,8 @@
 - See how the insights work and tweak the prompt as needed
 
 # Roadmap
-- Add name mappings to context:
-    - Add name_mappings column to user_context table
-    - Update context form to manage name mappings
-    - Include name context in OpenAI prompts
-    - Help LLM disambiguate names and provide person context
-- Add a chat history
+- Fix the Make.com voice note API confirmation – it works for text but not voice
 - Add API key check to Make.com to prevent abuse
-- Add pre-set prompts (like "What have I been doing?")
-- Add a "user info" screen that gets pulled into the prompt with extra context:
-    - Goals
-    - Projects
-    - Life info
-    - Etc
 - Move the Telegram integration into the app to remove the need for Make.com
 - Add the ability to switch models on the front end
-- Make the API return a success/failure message to Telegram
-    - It already shows on the front end so must be there already in some form
+- 

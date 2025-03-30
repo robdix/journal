@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 interface Message {
@@ -13,6 +13,16 @@ export default function ChatInterface() {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const getRecentContext = (messages: Message[]) => {
     // Get the last N messages, excluding the most recent user message
@@ -26,6 +36,7 @@ export default function ChatInterface() {
     const userMessage: Message = { type: 'user', content: question };
     setMessages(prev => [...prev, userMessage]);
     setStatus('loading');
+    setQuestion(''); // Clear input immediately after submission
 
     try {
       const recentContext = getRecentContext(messages);
@@ -44,7 +55,6 @@ export default function ChatInterface() {
       const assistantMessage: Message = { type: 'assistant', content: data.response };
       setMessages(prev => [...prev, assistantMessage]);
       setStatus('idle');
-      setQuestion(''); // Clear input after successful response
     } catch (error) {
       console.error('Failed to get response:', error);
       setStatus('error');
@@ -75,6 +85,7 @@ export default function ChatInterface() {
             </div>
           </div>
         ))}
+        <div ref={messagesEndRef} /> {/* Invisible element to scroll to */}
       </div>
 
       {/* Question Input Form */}
