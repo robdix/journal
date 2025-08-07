@@ -43,17 +43,40 @@ export default function ChatInterface() {
       const res = await fetch('/api/query', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           question,
           context: recentContext,
         }),
       });
 
-      if (!res.ok) throw new Error('Failed to get response');
-      
-      const data = await res.json();
-      const assistantMessage: Message = { type: 'assistant', content: data.response };
+      if (!res.ok || !res.body) {
+        throw new Error('Failed to get response');
+      }
+
+      // Handle streaming response
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let assistantMessage: Message = { type: 'assistant', content: '' };
       setMessages(prev => [...prev, assistantMessage]);
+
+      const processStream = async () => {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          console.log('Received chunk:', chunk);
+          assistantMessage.content += chunk;
+
+          setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = { ...assistantMessage };
+            return newMessages;
+          });
+        }
+      };
+
+      await processStream();
       setStatus('idle');
     } catch (error) {
       console.error('Failed to get response:', error);

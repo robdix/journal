@@ -1,7 +1,11 @@
-import type { NextApiRequest, NextApiResponse } from 'next';
+import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../lib/supabaseClient';
 import { getEmbedding, getChatResponse } from '../../lib/openai';
 import type { UserContext } from '../../types/context';
+
+export const config = {
+  runtime: 'edge',
+};
 
 interface JournalEntry {
   content: string;
@@ -64,19 +68,22 @@ function parseDateQuery(question: string): { startDate: Date | null, endDate: Da
   return { startDate, endDate };
 }
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse<Data>
-) {
+export default async function handler(req: NextRequest) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, error: 'Method not allowed' });
+    return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), {
+      status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   try {
-    const { question, context } = req.body;
+    const { question, context } = await req.json();
 
     if (!question?.trim()) {
-      return res.status(400).json({ success: false, error: 'Question is required' });
+      return new Response(JSON.stringify({ success: false, error: 'Question is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
     // Parse date range from question
@@ -133,15 +140,14 @@ export default async function handler(
       userContext as UserContext
     );
 
-    return res.status(200).json({ 
-      success: true, 
-      response: response 
+    return new Response(response, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     });
   } catch (error: any) {
     console.error('Error processing query:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: error.message || 'Failed to process query' 
+    return new Response(JSON.stringify({ success: false, error: error.message || 'Failed to process query' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
     });
   }
 } 

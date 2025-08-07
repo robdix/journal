@@ -30,7 +30,7 @@ export async function getChatResponse(
   relevantEntries: { content: string, created_at: string }[],
   conversationHistory: ChatMessage[] = [],
   userContext?: UserContext
-): Promise<string> {
+): Promise<ReadableStream> {
   // Group entries by date
   const entriesByDate = relevantEntries.reduce((acc, entry) => {
     const date = new Date(entry.created_at).toLocaleDateString();
@@ -94,7 +94,21 @@ Today's date is ${currentDate}.`
     messages,
     temperature: 0.7,
     max_tokens: 1500,
+    stream: true,
   });
 
-  return response.choices[0].message.content || 'No response generated';
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+      for await (const chunk of response) {
+        const content = chunk.choices[0]?.delta?.content || '';
+        if (content) {
+          controller.enqueue(encoder.encode(content));
+        }
+      }
+      controller.close();
+    },
+  });
+
+  return stream;
 } 
