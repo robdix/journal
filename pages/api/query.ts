@@ -37,6 +37,7 @@ function parseDateQuery(question: string): { startDate: Date | null, endDate: Da
   const lastNDaysPattern = /last (\d+) days?/i;
   const yesterdayPattern = /yesterday/i;
   const todayPattern = /today/i;
+  const monthPattern = /(january|february|march|april|may|june|july|august|september|october|november|december)/i;
 
   if (lastWeekPattern.test(question)) {
     startDate = new Date(now);
@@ -63,6 +64,17 @@ function parseDateQuery(question: string): { startDate: Date | null, endDate: Da
   } else if (todayPattern.test(question)) {
     startDate = new Date(now);
     startDate.setHours(0, 0, 0, 0);
+  } else if (monthPattern.test(question)) {
+    const matches = question.match(monthPattern);
+    if (matches && matches[1]) {
+      const monthName = matches[1].toLowerCase();
+      const monthIndex = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'].indexOf(monthName);
+      
+      startDate = new Date(now.getFullYear(), monthIndex, 1);
+      endDate.setMonth(monthIndex + 1);
+      endDate.setDate(0); // Last day of the month
+      endDate.setHours(23, 59, 59, 999);
+    }
   }
 
   return { startDate, endDate };
@@ -100,29 +112,35 @@ export default async function handler(req: NextRequest) {
       // Continue without context rather than failing
     }
 
-    // Generate embedding for the question
-    const questionEmbedding = await getEmbedding(question);
+    let relevantEntries;
 
-    // Base query using vector similarity
-    let query = supabase.rpc('match_journal_entries', {
-      query_embedding: questionEmbedding,
-      match_threshold: 0.3,
-      match_count: 50, // Increased to account for date filtering
-    });
-
-    // Add date filtering if applicable
+    // If a specific date range is found in the query, prioritize fetching all entries from that range.
+    // This provides a more deterministic result for time-based queries.
     if (startDate) {
-      query = query.gte('created_at', startDate.toISOString());
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('content, created_at')
+        .gte('created_at', startDate.toISOString())
+        .lte('created_at', endDate.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      relevantEntries = data;
+    } else {
+      // If no date is found, fall back to semantic search.
+      const questionEmbedding = await getEmbedding(question);
+      const { data, error } = await supabase.rpc('match_journal_entries', {
+        query_embedding: questionEmbedding,
+        match_threshold: 0.3,
+        match_count: 20,
+      });
+
+      if (error) throw error;
+      relevantEntries = data;
     }
-    query = query.lte('created_at', endDate.toISOString());
 
-    // Execute query
-    const { data: similarEntries, error: searchError } = await query;
-
-    if (searchError) throw searchError;
-
-    // Sort entries by date
-    const sortedEntries = (similarEntries || []).sort((a: JournalEntry, b: JournalEntry) => 
+    // Sort entries by date (important for semantic search results)
+    const sortedEntries = (relevantEntries || []).sort((a: JournalEntry, b: JournalEntry) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
@@ -134,8 +152,8 @@ export default async function handler(req: NextRequest) {
 
     // Get a response from OpenAI
     const response = await getChatResponse(
-      question, 
-      sortedEntries, 
+      question,
+      sortedEntries,
       conversationHistory,
       userContext as UserContext
     );
