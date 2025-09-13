@@ -13,7 +13,36 @@ export default function ChatInterface() {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [mode, setMode] = useState<'coach' | 'psychiatrist' | 'productivity' | 'peer' | 'analyst'>('coach');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const STARTERS: Record<typeof mode, string[]> = {
+    coach: [
+      'What themes stood out for me last week?',
+      'Where do my actions not match my intentions?',
+      'What small constraint would improve my week?'
+    ],
+    psychiatrist: [
+      'What emotions keep recurring lately and why?',
+      'Where might I be using all-or-nothing thinking?',
+      'What coping strategies are working vs. not?'
+    ],
+    productivity: [
+      'Pull 3 concrete next steps from recent entries.',
+      'What single focus would move things most this week?',
+      'Timebox a realistic plan for tomorrow.'
+    ],
+    peer: [
+      'Give me a pep talk based on last week.',
+      'What should I be proud of lately?',
+      'Suggest one light-weight experiment to try.'
+    ],
+    analyst: [
+      'What trends and outliers show up in the last 30 days?',
+      'When are my energy highs vs. lows?',
+      'What correlates with productive days?'
+    ],
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -46,6 +75,7 @@ export default function ChatInterface() {
         body: JSON.stringify({
           question,
           context: recentContext,
+          mode,
         }),
       });
 
@@ -114,7 +144,19 @@ export default function ChatInterface() {
       {/* Question Input Form */}
       <div className="sticky bottom-0 bg-white p-4 border-t">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <select
+              value={mode}
+              onChange={(e) => setMode(e.target.value as typeof mode)}
+              className="p-3 border rounded-lg text-sm"
+              title="Assistant mode"
+            >
+              <option value="coach">Coach</option>
+              <option value="psychiatrist">Psychiatrist</option>
+              <option value="productivity">Productivity</option>
+              <option value="peer">Peer</option>
+              <option value="analyst">Analyst</option>
+            </select>
             <input
               type="text"
               value={question}
@@ -134,6 +176,21 @@ export default function ChatInterface() {
               {status === 'loading' ? 'Thinking...' : 'Ask'}
             </button>
           </div>
+
+          {/* Conversation starters */}
+          <div className="flex flex-wrap gap-2">
+            {STARTERS[mode].map((s, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setQuestion(s)}
+                className="text-sm px-2 py-1 rounded border hover:bg-gray-50"
+                title="Fill prompt"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
           
           {status === 'error' && (
             <p className="text-red-600">Failed to get response. Please try again.</p>
@@ -142,4 +199,4 @@ export default function ChatInterface() {
       </div>
     </div>
   );
-} 
+}

@@ -80,6 +80,34 @@ function parseDateQuery(question: string): { startDate: Date | null, endDate: Da
   return { startDate, endDate };
 }
 
+// Helper to detect queries asking for the most recent N entries
+function parseRecencyQuery(question: string): number | null {
+  const q = question.toLowerCase();
+
+  // Common phrases indicating recency
+  const hasRecencyPhrase = /(most\s+recent|latest|newest|recent\s+entries)/i.test(q);
+
+  if (!hasRecencyPhrase) return null;
+
+  // Try to extract an explicit number (e.g., "most recent 5 entries")
+  const numberMatch = q.match(/(?:most\s+recent|latest|newest|recent\s+entries?)\s*(\d+)?/i);
+
+  if (numberMatch && numberMatch[1]) {
+    const n = parseInt(numberMatch[1], 10);
+    if (!Number.isNaN(n) && n > 0) return n;
+  }
+
+  // Also handle patterns like "recent 5 entries"
+  const trailingNumber = q.match(/\b(\d+)\s+(?:recent|latest|newest)\s+(?:entries?|notes?|posts?)\b/);
+  if (trailingNumber && trailingNumber[1]) {
+    const n = parseInt(trailingNumber[1], 10);
+    if (!Number.isNaN(n) && n > 0) return n;
+  }
+
+  // Default to 5 if no number specified
+  return 5;
+}
+
 export default async function handler(req: NextRequest) {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ success: false, error: 'Method not allowed' }), {
@@ -89,7 +117,7 @@ export default async function handler(req: NextRequest) {
   }
 
   try {
-    const { question, context } = await req.json();
+    const { question, context, mode } = await req.json();
 
     if (!question?.trim()) {
       return new Response(JSON.stringify({ success: false, error: 'Question is required' }), {
@@ -100,6 +128,8 @@ export default async function handler(req: NextRequest) {
 
     // Parse date range from question
     const { startDate, endDate } = parseDateQuery(question);
+    // Parse explicit recency request (e.g., "most recent 5 entries")
+    const recencyCount = parseRecencyQuery(question);
 
     // Fetch user context
     const { data: userContext, error: contextError } = await supabase
@@ -123,6 +153,16 @@ export default async function handler(req: NextRequest) {
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      relevantEntries = data;
+    } else if (recencyCount) {
+      // If user asked for most recent N entries, fetch directly by date
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('content, created_at')
+        .order('created_at', { ascending: false })
+        .limit(recencyCount);
 
       if (error) throw error;
       relevantEntries = data;
@@ -155,7 +195,8 @@ export default async function handler(req: NextRequest) {
       question,
       sortedEntries,
       conversationHistory,
-      userContext as UserContext
+      userContext as UserContext,
+      (mode as any) || 'coach'
     );
 
     return new Response(response, {
