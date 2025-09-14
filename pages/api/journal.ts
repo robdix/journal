@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '../../lib/supabaseClient';
-import { getEmbedding } from '../../lib/openai';
+import { getEmbedding, extractJournalStructure } from '../../lib/openai';
 
 type Data = {
   success: boolean;
@@ -28,9 +28,9 @@ export default async function handler(
     const embedding = await getEmbedding(content);
     console.log('Embedding generated successfully');
 
-    // Save to Supabase
+    // Save to Supabase (returning inserted row)
     console.log('Saving to Supabase...');
-    const { error: supabaseError } = await supabase
+    const { data: inserted, error: supabaseError } = await supabase
       .from('journal_entries')
       .insert([
         {
@@ -38,11 +38,28 @@ export default async function handler(
           embedding,
           created_at,
         }
-      ]);
+      ])
+      .select()
+      .single();
 
     if (supabaseError) {
       console.error('Supabase error:', supabaseError);
       throw supabaseError;
+    }
+
+    // Attempt extraction (best-effort)
+    try {
+      console.log('Extracting structure...');
+      const extracted = await extractJournalStructure(content);
+      if (inserted?.id) {
+        const { error: updateError } = await supabase
+          .from('journal_entries')
+          .update({ extracted })
+          .eq('id', inserted.id);
+        if (updateError) console.warn('Failed to update extracted structure:', updateError);
+      }
+    } catch (ex) {
+      console.warn('Extraction step failed:', ex);
     }
 
     console.log('Successfully saved to database');

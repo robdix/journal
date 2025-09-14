@@ -13,7 +13,7 @@ export default function ChatInterface() {
   const [question, setQuestion] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
-  const [mode, setMode] = useState<'coach' | 'psychiatrist' | 'productivity' | 'peer' | 'analyst'>('coach');
+  const [mode, setMode] = useState<'coach' | 'psychiatrist' | 'productivity' | 'peer' | 'analyst' | 'content'>('coach');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const STARTERS: Record<typeof mode, string[]> = {
@@ -41,6 +41,11 @@ export default function ChatInterface() {
       'What trends and outliers show up in the last 30 days?',
       'When are my energy highs vs. lows?',
       'What correlates with productive days?'
+    ],
+    content: [
+      'Pitch 10 content ideas from my last 30 days.',
+      'Find 3 contrarian angles from recent entries.',
+      'Draft an outline for a post about my recurring theme.'
     ],
   };
 
@@ -156,6 +161,7 @@ export default function ChatInterface() {
               <option value="productivity">Productivity</option>
               <option value="peer">Peer</option>
               <option value="analyst">Analyst</option>
+              <option value="content">Content</option>
             </select>
             <input
               type="text"

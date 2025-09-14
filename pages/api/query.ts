@@ -149,7 +149,7 @@ export default async function handler(req: NextRequest) {
     if (startDate) {
       const { data, error } = await supabase
         .from('journal_entries')
-        .select('content, created_at')
+        .select('content, created_at, extracted')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
@@ -160,7 +160,7 @@ export default async function handler(req: NextRequest) {
       // If user asked for most recent N entries, fetch directly by date
       const { data, error } = await supabase
         .from('journal_entries')
-        .select('content, created_at')
+        .select('content, created_at, extracted')
         .order('created_at', { ascending: false })
         .limit(recencyCount);
 
@@ -176,11 +176,32 @@ export default async function handler(req: NextRequest) {
       });
 
       if (error) throw error;
-      relevantEntries = data;
+      // If the RPC returns IDs, hydrate to include extracted
+      const ids = Array.isArray(data) ? data.map((d: any) => d.id).filter(Boolean) : [];
+      if (ids.length > 0) {
+        const { data: hydrated, error: hydrateError } = await supabase
+          .from('journal_entries')
+          .select('id, content, created_at, extracted')
+          .in('id', ids);
+        if (hydrateError) throw hydrateError;
+        // Preserve RPC order
+        const byId = new Map(hydrated.map((r: any) => [r.id, r]));
+        relevantEntries = ids.map((id: any) => byId.get(id)).filter(Boolean);
+      } else {
+        relevantEntries = data;
+      }
     }
 
+    // Mode-based filtering: exclude chat summaries for psychiatrist mode
+    const filtered = (relevantEntries || []).filter((e: any) => {
+      if ((mode as string) === 'psychiatrist') {
+        return e?.extracted?.source !== 'chat_summary';
+      }
+      return true;
+    });
+
     // Sort entries by date (important for semantic search results)
-    const sortedEntries = (relevantEntries || []).sort((a: JournalEntry, b: JournalEntry) =>
+    const sortedEntries = filtered.sort((a: JournalEntry, b: JournalEntry) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 

@@ -24,7 +24,48 @@ interface ChatMessage {
   content: string;
 }
 
-export type AssistantMode = 'coach' | 'psychiatrist' | 'productivity' | 'peer' | 'analyst';
+export type AssistantMode = 'coach' | 'psychiatrist' | 'productivity' | 'peer' | 'analyst' | 'content';
+
+// Extract structured signals from a raw journal entry
+export async function extractJournalStructure(text: string): Promise<any> {
+  const system = `You are an information extractor for personal journal notes. Return STRICT JSON only, no commentary. Keep it compact.`;
+  const user = `Extract structure from the following note. Use this JSON schema with all keys present:
+{
+  "segments": [{"title": string, "type": "win"|"friction"|"insight"|"decision"|"action"|"content_idea"|"note", "text": string}],
+  "actions": [{"text": string}],
+  "decisions": [{"summary": string, "options": [string] | [], "chosen": string | "", "rationale": string | ""}],
+  "entities": {"people": [string], "projects": [string]},
+  "tags": [string],
+  "energy": {"score": number | null}
+}
+
+Text:\n${text}`;
+
+  try {
+    const resp = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      temperature: 0,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user }
+      ],
+      max_tokens: 600,
+      stream: false,
+    });
+
+    const content = resp.choices?.[0]?.message?.content || '{}';
+    try {
+      return JSON.parse(content);
+    } catch {
+      const match = content.match(/\{[\s\S]*\}$/);
+      if (match) return JSON.parse(match[0]);
+      return {};
+    }
+  } catch (e) {
+    console.error('extractJournalStructure failed:', e);
+    return {};
+  }
+}
 
 function buildSystemPrompt(
   mode: AssistantMode,
@@ -35,6 +76,8 @@ function buildSystemPrompt(
   const baseTail = `\n\n${userContextStr}${nameContextStr}\n\nToday's date is ${currentDate}.`;
 
   switch (mode) {
+    case 'content':
+      return `You are a sharp, practical content strategist and editor. Your goal is to surface specific, high-signal, shareable content ideas from the journal material. Prefer concrete stories, crisp insights, and useful frameworks over vague advice. For each top idea, include: a compelling title/headline, 1–2 sentence summary, suggested format (tweet, thread, LinkedIn post, blog, newsletter, short video), a hook/angle, and a 4–6 bullet outline. Where helpful, propose 1–2 social snippets. Ask for missing constraints (audience, platform, cadence) only if needed. Always cite dates and short excerpts when referencing entries. Avoid generic filler; keep voice authentic and specific.${baseTail}`;
     case 'psychiatrist':
       return `You are a thoughtful, reflective psychiatrist. Focus on emotions, themes, and coping patterns. Do not diagnose. Use gentle Socratic questions, normalize feelings, and highlight cognitive patterns (catastrophizing, all-or-nothing) when relevant. Avoid prescriptive fixes; invite reflection and safer experiments. Cite dates and brief excerpts when referencing entries.${baseTail}`;
     case 'productivity':
@@ -52,7 +95,7 @@ function buildSystemPrompt(
 // Helper function to generate chat responses
 export async function getChatResponse(
   question: string, 
-  relevantEntries: { content: string, created_at: string }[],
+  relevantEntries: { content: string, created_at: string, extracted?: any }[],
   conversationHistory: ChatMessage[] = [],
   userContext?: UserContext,
   mode: AssistantMode = 'coach'
@@ -61,7 +104,18 @@ export async function getChatResponse(
   const entriesByDate = relevantEntries.reduce((acc, entry) => {
     const date = new Date(entry.created_at).toLocaleDateString();
     if (!acc[date]) acc[date] = [];
-    acc[date].push(entry.content);
+    if (entry.extracted?.segments?.length) {
+      const isSummary = entry.extracted?.source === 'chat_summary';
+      const parts = entry.extracted.segments.map((s: any) => {
+        const label = s.type ? s.type.toUpperCase() : 'NOTE';
+        const title = s.title ? ` ${s.title}` : '';
+        const prefix = isSummary ? '[CHAT SUMMARY] ' : '';
+        return `${prefix}[${label}${title ? ':' + title : ''}] ${s.text}`;
+      });
+      acc[date].push(parts.join('\n'));
+    } else {
+      acc[date].push(entry.content);
+    }
     return acc;
   }, {} as Record<string, string[]>);
 
